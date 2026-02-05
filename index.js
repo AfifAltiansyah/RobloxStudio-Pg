@@ -6,14 +6,14 @@ const app = express();
 const PORT = process.env.PORT || 8080;
 
 // Inisialisasi Gemini API
-const API_KEY = process.env.GEMINI_API_KEY;
+const API_KEY = process.env.GEMINI_API_KEY ? process.env.GEMINI_API_KEY.trim() : null;
 
 if (!API_KEY) {
     console.error("CRITICAL: GEMINI_API_KEY is not set in environment variables!");
 }
 
+// Inisialisasi dengan v1 jika memungkinkan
 const genAI = new GoogleGenerativeAI(API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
 app.use(express.json());
 
@@ -44,8 +44,14 @@ app.post('/ai', async (req, res) => {
 
         console.log("Processing input:", inputPrompt);
 
-        // Try different model names as fallbacks
-        const modelsToTry = ["gemini-1.5-flash", "gemini-1.5-flash-latest", "gemini-pro"];
+        // Daftar model yang akan dicoba (dengan prefix lengkap)
+        const modelsToTry = [
+            "gemini-1.5-flash",
+            "gemini-pro",
+            "models/gemini-1.5-flash",
+            "models/gemini-pro"
+        ];
+        
         let lastError = null;
         let text = null;
 
@@ -56,10 +62,17 @@ app.post('/ai', async (req, res) => {
                 const result = await currentModel.generateContent(inputPrompt);
                 const response = await result.response;
                 text = response.text();
-                if (text) break;
+                if (text) {
+                    console.log(`Success with model: ${modelName}`);
+                    break;
+                }
             } catch (err) {
                 console.error(`Failed with ${modelName}:`, err.message);
                 lastError = err;
+                // Jika errornya 401 (Unauthorized), jangan lanjut looping
+                if (err.message.includes("401") || err.message.includes("key")) {
+                    break;
+                }
             }
         }
 
