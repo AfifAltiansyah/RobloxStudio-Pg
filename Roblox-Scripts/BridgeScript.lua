@@ -1,36 +1,34 @@
 local HttpService = game:GetService("HttpService")
 
--- URL Railway yang sudah aktif
+-- URL Railway
 local URL = "https://robloxstudio-pg-production.up.railway.app/ai"
 
 local function sendDataToAI(message)
 	local data = {
-		["message"] = message,
+		["prompt"] = message, -- Menggunakan 'prompt' agar sesuai dengan index.js
 		["userId"] = 12345,
 		["timestamp"] = os.date("!*t")
 	}
 	
-	-- Ubah tabel Lua menjadi format JSON
 	local jsonPayload = HttpService:JSONEncode(data)
 	
-	print("Mengirim data ke Railway...")
+	print("Mengirim data ke Railway: " .. URL)
 	
-	-- Kirim request ke server
 	local success, response = pcall(function()
 		return HttpService:PostAsync(URL, jsonPayload, Enum.HttpContentType.ApplicationJson)
 	end)
 	
 	if success then
-		print("Berhasil terhubung ke Railway!")
 		local responseData = HttpService:JSONDecode(response)
-		-- Menampilkan respon dari server kita di Railway
 		if responseData.success then
-			print("Server Railway merespon: OK")
+			print("Respon dari AI: " .. tostring(responseData.answer))
+		else
+			warn("Server merespon dengan error: " .. tostring(responseData.error))
 		end
 	else
 		warn("Gagal terhubung ke Railway: " .. tostring(response))
 	end
 end
 
--- Contoh pemanggilan fungsi
+-- Contoh pemanggilan
 sendDataToAI("Halo dari Roblox Studio!")
