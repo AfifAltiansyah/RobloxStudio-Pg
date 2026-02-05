@@ -44,16 +44,35 @@ app.post('/ai', async (req, res) => {
 
         console.log("Processing input:", inputPrompt);
 
-        const result = await model.generateContent(inputPrompt);
-        const response = await result.response;
-        const text = response.text();
+        // Try different model names as fallbacks
+        const modelsToTry = ["gemini-1.5-flash", "gemini-1.5-flash-latest", "gemini-pro"];
+        let lastError = null;
+        let text = null;
 
-        res.status(200).json({ 
-            success: true, 
-            answer: text 
-        });
+        for (const modelName of modelsToTry) {
+            try {
+                console.log(`Trying model: ${modelName}`);
+                const currentModel = genAI.getGenerativeModel({ model: modelName });
+                const result = await currentModel.generateContent(inputPrompt);
+                const response = await result.response;
+                text = response.text();
+                if (text) break;
+            } catch (err) {
+                console.error(`Failed with ${modelName}:`, err.message);
+                lastError = err;
+            }
+        }
+
+        if (text) {
+            res.status(200).json({ 
+                success: true, 
+                answer: text 
+            });
+        } else {
+            throw lastError;
+        }
     } catch (error) {
-        console.error("Error calling Gemini:", error.message);
+        console.error("All models failed. Last error:", error.message);
         res.status(500).json({ 
             success: false, 
             error: error.message || "Failed to process AI request" 
