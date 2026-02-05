@@ -6,7 +6,13 @@ const app = express();
 const PORT = process.env.PORT || 8080;
 
 // Inisialisasi Gemini API
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const API_KEY = process.env.GEMINI_API_KEY;
+
+if (!API_KEY) {
+    console.error("CRITICAL: GEMINI_API_KEY is not set in environment variables!");
+}
+
+const genAI = new GoogleGenerativeAI(API_KEY);
 const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
 app.use(express.json());
@@ -29,6 +35,13 @@ app.post('/ai', async (req, res) => {
             return res.status(400).json({ error: "Prompt or message is required" });
         }
 
+        if (!API_KEY) {
+            return res.status(500).json({ 
+                success: false, 
+                error: "GEMINI_API_KEY is missing on server" 
+            });
+        }
+
         console.log("Processing input:", inputPrompt);
 
         const result = await model.generateContent(inputPrompt);
@@ -40,10 +53,10 @@ app.post('/ai', async (req, res) => {
             answer: text 
         });
     } catch (error) {
-        console.error("Error calling Gemini:", error);
+        console.error("Error calling Gemini:", error.message);
         res.status(500).json({ 
             success: false, 
-            error: "Failed to process AI request" 
+            error: error.message || "Failed to process AI request" 
         });
     }
 });
