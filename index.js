@@ -1,36 +1,21 @@
 require('dotenv').config();
 const express = require('express');
-const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 const app = express();
-// Railway secara otomatis memberikan PORT, jika tidak ada gunakan 8080
 const PORT = process.env.PORT || 8080;
-
-// Ambil API Key dan bersihkan dari spasi/newline
 const API_KEY = process.env.GEMINI_API_KEY ? process.env.GEMINI_API_KEY.trim() : null;
 
 app.use(express.json());
 
-// Logger untuk setiap request
-app.use((req, res, next) => {
-    console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
-    next();
-});
-
-// Endpoint Health Check (Penting untuk Railway)
 app.get('/', (req, res) => {
-    res.status(200).send('Server AI Bridge is Online');
+    res.status(200).send('Server AI Bridge (Direct Mode) is Online');
 });
 
 app.post('/ai', async (req, res) => {
-    console.log("Menerima request dari Roblox...");
+    console.log("--- Request Baru dari Roblox ---");
     
     if (!API_KEY) {
-        console.error("ERROR: GEMINI_API_KEY tidak ditemukan di environment variables!");
-        return res.status(500).json({ 
-            success: false, 
-            error: "API Key belum diset di Railway" 
-        });
+        return res.status(500).json({ success: false, error: "API Key tidak ditemukan" });
     }
 
     const { prompt, message } = req.body;
@@ -40,48 +25,46 @@ app.post('/ai', async (req, res) => {
         return res.status(400).json({ success: false, error: "Prompt kosong" });
     }
 
-    try {
-        const genAI = new GoogleGenerativeAI(API_KEY);
-        
-        // Memaksa penggunaan apiVersion 'v1' karena v1beta sering 404
-        const model = genAI.getGenerativeModel(
-            { model: "gemini-1.5-flash" },
-            { apiVersion: "v1" }
-        );
-        
-        console.log(`Meminta jawaban dari Gemini untuk: "${input.substring(0, 20)}..."`);
-        
-        const result = await model.generateContent(input);
-        const text = result.response.text();
-        
-        console.log("Gemini berhasil merespon.");
-        res.status(200).json({ 
-            success: true, 
-            answer: text 
-        });
-    } catch (error) {
-        console.error("GEMINI ERROR:", error.message);
-        
-        // Memberikan detail error ke Roblox agar kita tahu masalahnya
-        res.status(500).json({ 
-            success: false, 
-            error: error.message 
-        });
-    }
-});
+    // Kita akan coba v1beta karena lebih fleksibel untuk model baru
+    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
 
-// Error handling global
-app.use((err, req, res, next) => {
-    console.error("Global Error:", err);
-    res.status(500).json({ success: false, error: "Internal Server Error" });
+    try {
+        console.log("Memanggil Gemini API secara langsung via Fetch...");
+        
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{ parts: [{ text: input }] }]
+            })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            console.error("Gemini API Error:", data);
+            return res.status(response.status).json({ 
+                success: false, 
+                error: data.error ? data.error.message : "Gagal memanggil API" 
+            });
+        }
+
+        if (data.candidates && data.candidates[0].content && data.candidates[0].content.parts) {
+            const answer = data.candidates[0].content.parts[0].text;
+            console.log("Berhasil mendapatkan jawaban.");
+            res.status(200).json({ success: true, answer: answer });
+        } else {
+            console.error("Format respon tidak sesuai:", data);
+            res.status(500).json({ success: false, error: "Format respon AI tidak dikenal" });
+        }
+
+    } catch (error) {
+        console.error("Fetch Error:", error.message);
+        res.status(500).json({ success: false, error: error.message });
+    }
 });
 
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`-----------------------------------------`);
-    console.log(`Server berjalan di Port: ${PORT}`);
-    console.log(`Status API Key: ${API_KEY ? "TERPASANG (OK)" : "TIDAK ADA (ERROR)"}`);
-    if (API_KEY) {
-        console.log(`Key Prefix: ${API_KEY.substring(0, 4)}****`);
-    }
-    console.log(`-----------------------------------------`);
+    console.log(`Server running on port ${PORT}`);
+    console.log(`API Key terdeteksi: ${API_KEY ? "YA" : "TIDAK"}`);
 });
