@@ -1,31 +1,32 @@
 const express = require('express');
 const app = express();
 
-// Railway sangat sensitif dengan PORT. Kita pastikan mengambil dari env atau default 8080.
-const PORT = process.env.PORT || process.env.port || 8080;
+// Pastikan PORT benar-benar diambil dari Railway
+const PORT = process.env.PORT || 8080;
 
 app.use(express.json());
 
-// Endpoint sederhana untuk Health Check
-app.get('/', (req, res) => {
-    res.status(200).send('SERVER_OK');
+// Logger sederhana
+app.use((req, res, next) => {
+    console.log(`${req.method} ${req.path}`);
+    next();
 });
 
+// Health Check Root
+app.get('/', (req, res) => {
+    res.status(200).send('OK');
+});
+
+// Endpoint AI
 app.get('/ai', (req, res) => {
-    res.status(200).json({ status: "ok", endpoint: "/ai" });
+    res.status(200).json({ status: "alive" });
 });
 
 app.post('/ai', (req, res) => {
-    console.log('Request received at /ai');
-    res.json({ success: true, data: req.body });
+    res.status(200).json({ success: true, received: req.body });
 });
 
-// Start server
-const server = app.listen(PORT, '0.0.0.0', () => {
-    console.log(`>>> Server is LIVE on port ${PORT}`);
-});
-
-// Menangani error jika port sibuk atau masalah lain
-server.on('error', (err) => {
-    console.error('Server Error:', err);
+// Bind ke 0.0.0.0 adalah WAJIB di Railway
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server started on port ${PORT}`);
 });
