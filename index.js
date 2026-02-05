@@ -1,42 +1,31 @@
 const express = require('express');
 const app = express();
 
-// Railway menyediakan port via process.env.PORT
-const PORT = process.env.PORT || 3000;
+// Railway sangat sensitif dengan PORT. Kita pastikan mengambil dari env atau default 8080.
+const PORT = process.env.PORT || process.env.port || 8080;
 
 app.use(express.json());
 
-// Log setiap request yang masuk untuk mempermudah debug di Railway
-app.use((req, res, next) => {
-    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
-    next();
-});
-
+// Endpoint sederhana untuk Health Check
 app.get('/', (req, res) => {
-    res.status(200).send('<h1>Server Railway Aktif</h1><p>Status: Running</p>');
+    res.status(200).send('SERVER_OK');
 });
 
 app.get('/ai', (req, res) => {
-    res.status(200).json({ 
-        status: "online", 
-        message: "Endpoint AI siap menerima POST request" 
-    });
+    res.status(200).json({ status: "ok", endpoint: "/ai" });
 });
 
 app.post('/ai', (req, res) => {
-    console.log('Data diterima:', req.body);
-    res.status(200).json({
-        success: true,
-        message: "Data berhasil diterima oleh Railway",
-        timestamp: new Date().toISOString()
-    });
+    console.log('Request received at /ai');
+    res.json({ success: true, data: req.body });
 });
 
-// Penting: Bind ke 0.0.0.0 agar bisa diakses dari luar container
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`-----------------------------------------`);
-    console.log(`Server berhasil dijalankan!`);
-    console.log(`Port: ${PORT}`);
-    console.log(`URL: https://roblox-ai-bridge.up.railway.app`);
-    console.log(`-----------------------------------------`);
+// Start server
+const server = app.listen(PORT, '0.0.0.0', () => {
+    console.log(`>>> Server is LIVE on port ${PORT}`);
+});
+
+// Menangani error jika port sibuk atau masalah lain
+server.on('error', (err) => {
+    console.error('Server Error:', err);
 });
