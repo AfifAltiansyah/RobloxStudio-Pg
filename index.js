@@ -58,7 +58,11 @@ app.post('/ai', async (req, res) => {
         for (const modelName of modelsToTry) {
             try {
                 console.log(`Trying model: ${modelName}`);
-                const currentModel = genAI.getGenerativeModel({ model: modelName });
+                // Memaksa penggunaan apiVersion 'v1'
+                const currentModel = genAI.getGenerativeModel(
+                    { model: modelName },
+                    { apiVersion: 'v1' }
+                );
                 const result = await currentModel.generateContent(inputPrompt);
                 const response = await result.response;
                 text = response.text();
