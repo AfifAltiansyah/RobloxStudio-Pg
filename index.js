@@ -6,6 +6,15 @@ app.get('/', (req, res) => {
     res.send('Server RobloxStudio-Pg Berhasil Berjalan!');
 });
 
+app.post('/ai', express.json(), (req, res) => {
+    console.log('AI Request received:', req.body);
+    res.json({
+        message: "AI Bridge is active",
+        status: "success",
+        receivedData: req.body
+    });
+});
+
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server is running on port ${PORT}`);
 });
